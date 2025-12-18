@@ -1,0 +1,41 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs (Electron, Webpack, etc.)
+dist/
+build/
+out/
+
+# Environment files
+.env
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Electron binaries
+*.exe
+*.dll
+*.dmg
+*.pkg
+*.deb
+*.AppImage
+
+# Logs
+logs
+*.log
+
+# Cache
+.cache/

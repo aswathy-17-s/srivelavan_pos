@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sri Velavan Crackers - POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600;700&display=swap');
+    * { font-family: 'Segoe UI', Arial, sans-serif; }
+    .sidebar-gradient { background: linear-gradient(135deg,#ff6600 0%,#ff3300 100%); }
+    .card-shadow { box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .table-zebra tr:nth-child(even) { background: #f8f9fa; }
+    .badge { display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600; }
+    .badge-success { background:#28a745;color:#fff; }
+    .badge-info { background:#17a2b8;color:#fff; }
+    .badge-warning { background:#ffc107;color:#212529; }
+    .thermal-print { font-family:'Courier New', monospace; font-size:12px; line-height:1.2; }
+    .hidden { display:none; }
+    .active-nav { background:rgba(255,255,255,0.12); border-left:4px solid white; }
+    img.product-thumb { width:48px;height:48px;object-fit:cover;border-radius:6px; }
+
+    /* The print media query must come AFTER all standard CSS rules */
+    @media print {
+      /* Define A4 paper size and margins */
+      @page {
+          size: A4;
+          margin: 20mm;
+      }
+      
+      /* Hide non-printable elements */
+      .no-print {
+          display: none !important;
+      }
+      
+      body > *:not(#billPrintModal) {
+          display: none;
+      }
+      
+      #billPrintModal {
+          position: absolute;
+          top: 0;
+          left: 0;
+          display: block !important;
+          width: 100%;
+          height: auto;
+          background: none;
+          box-shadow: none;
+      }
+      
+      #billPrintModal .bg-white {
+          background: white !important;
+          max-width: none !important;
+          box-shadow: none !important;
+          border-radius: 0;
+      }
+      
+      #billContent {
+          overflow: visible !important;
+          background: white;
+          box-shadow: none;
+          padding: 0;
+          width: auto;
+          height: auto;
+      }
+      
+      #billContent table {
+          page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div id="loginPage" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-400 to-red-500">
+    <div class="bg-white p-8 rounded-lg card-shadow w-full max-w-md">
+      <div class="text-center mb-6">
+        <div class="text-4xl mb-2">🎆</div>
+        <h1 class="text-2xl font-bold text-gray-800">Sri Velavan Crackers</h1>
+        <p class="text-gray-600 mt-2">Sign in to your account</p>
+      </div>
+
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input id="loginEmail" type="email" required class="w-full px-3 py-2 border rounded" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input id="loginPassword" type="password" required class="w-full px-3 py-2 border rounded" />
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="flex-1 bg-orange-500 text-white py-2 rounded">Sign In</button>
+          <button id="registerBtn" type="button" class="bg-gray-200 text-gray-700 py-2 px-3 rounded">Register</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="mainApp" class="hidden flex h-screen">
+    <div id="sidebar" class="w-64 sidebar-gradient text-white flex flex-col">
+      <div class="p-6 border-b border-white border-opacity-20">
+        <div class="text-2xl mb-1">🎆</div>
+        <h1 class="text-xl font-bold">Sri Velavan Crackers</h1>
+        <p class="text-sm opacity-80">D.No: 12/417/3 Rathnapuri Nagar, Meenampatti, SIVAKASI - 626 123</p>
+        <p class="text-sm opacity-80">Phone: 80722 50499, 97874 21455</p>
+      </div>
+
+      <nav class="flex-1 p-4">
+        <ul class="space-y-2">
+          <li><a href="#" data-page="dashboard" class="nav-link flex items-center p-3 rounded hover:bg-white hover:bg-opacity-10 transition"><span class="mr-3">📊</span> Dashboard</a></li>
+          <li><a href="#" data-page="products" class="nav-link flex items-center p-3 rounded hover:bg-white hover:bg-opacity-10 transition"><span class="mr-3">📦</span> Products</a></li>
+          <li><a href="#" data-page="billing" class="nav-link flex items-center p-3 rounded hover:bg-white hover:bg-opacity-10 transition"><span class="mr-3">🧾</span> Billing</a></li>
+          <li><a href="#" data-page="stock" class="nav-link flex items-center p-3 rounded hover:bg-white hover:bg-opacity-10 transition"><span class="mr-3">📋</span> Stock</a></li>
+          <li><a href="#" data-page="reports" class="nav-link flex items-center p-3 rounded hover:bg-white hover:bg-opacity-10 transition"><span class="mr-3">📈</span> Reports</a></li>
+          <li><a href="#" data-page="settings" class="nav-link flex items-center p-3 rounded hover:bg-white hover:bg-opacity-10 transition"><span class="mr-3">⚙️</span> Settings</a></li>
+        </ul>
+      </nav>
+
+      <div class="p-4 border-t border-white border-opacity-20">
+        <button id="logoutBtn" class="w-full flex items-center p-3 rounded hover:bg-white hover:bg-opacity-10 transition"><span class="mr-3">🚪</span> Logout</button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-auto">
+      <div id="dashboardPage" class="page p-6">
+        <div class="mb-6">
+          <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
+          <p class="text-gray-600">Welcome to Sri Velavan Crackers POS</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="bg-white p-6 rounded-lg card-shadow">
+            <p class="text-sm text-gray-600">Total Revenue (Today)</p>
+            <p class="text-2xl font-bold text-green-600" id="todayRevenue">₹0</p>
+          </div>
+          <div class="bg-white p-6 rounded-lg card-shadow">
+            <p class="text-sm text-gray-600">Orders (Today)</p>
+            <p class="text-2xl font-bold text-blue-600" id="todayOrders">0</p>
+          </div>
+          <div class="bg-white p-6 rounded-lg card-shadow">
+            <p class="text-sm text-gray-600">Customers (Today)</p>
+            <p class="text-2xl font-bold text-purple-600" id="todayCustomers">0</p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg card-shadow">
+          <div class="p-6 border-b">
+            <h2 class="text-xl font-semibold">Recent Orders</h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bill No</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                </tr>
+              </thead>
+              <tbody id="recentOrdersTable" class="table-zebra">
+                </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="productsPage" class="page hidden p-6">
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-800">Products</h1>
+            <p class="text-gray-600">Manage inventory</p>
+          </div>
+          <button id="addProductBtn" class="bg-orange-500 text-white px-4 py-2 rounded">Add Product</button>
+        </div>
+
+        <div class="bg-white rounded-lg card-shadow">
+          <div class="p-6 border-b">
+            <div class="flex gap-4">
+              <input id="productSearch" type="text" placeholder="Search..." class="flex-1 px-3 py-2 border rounded" />
+              <select id="categoryFilter" class="px-3 py-2 border rounded">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Image</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product ID</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="productsTable" class="table-zebra">
+                </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="billingPage" class="page hidden p-6">
+        <div class="mb-6">
+          <h1 class="text-3xl font-bold text-gray-800">Billing</h1>
+          <p class="text-gray-600">Create bills</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-lg card-shadow">
+            <div class="p-6 border-b">
+              <h2 class="text-xl font-semibold mb-2">Select Products</h2>
+              <div class="flex gap-4 mb-4">
+                <input id="billingSearch" type="text" placeholder="Search products..." class="flex-1 px-3 py-2 border rounded" />
+                <select id="billingCategoryFilter" class="px-3 py-2 border rounded">
+                  <option value="">All Categories</option>
+                </select>
+              </div>
+            </div>
+            <div class="p-6 max-h-screen overflow-y-auto">
+             <div id="billingProductsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+          </div>
+          </div>
+
+          <div class="bg-white rounded-lg card-shadow">
+            <div class="p-6 border-b"><h2 class="text-xl font-semibold">Current Bill</h2></div>
+            <div class="p-6">
+              <div class="mb-4"><label class="block text-sm">Customer Name</label><input id="customerName" class="w-full px-3 py-2 border rounded" /></div>
+              <div class="mb-4"><label class="block text-sm">Customer Phone</label><input id="customerPhone" class="w-full px-3 py-2 border rounded" /></div>
+
+              <div class="mb-4">
+                <h3 class="font-semibold mb-2">Items</h3>
+                <div id="cartItems" class="space-y-2 mb-4"></div>
+              </div>
+
+              <div class="border-t pt-4 space-y-2">
+                <div class="flex justify-between"><span>Subtotal:</span><span id="subtotal">₹0</span></div>
+                <div class="flex justify-between items-center"><span>Discount (%):</span><input id="discountPercent" type="number" value="0" min="0" max="100" class="w-20 px-2 py-1 border rounded text-right" /></div>
+                <div class="flex justify-between"><span>Discount Amount:</span><span id="discountAmount">₹0</span></div>
+                <div class="flex justify-between"><span>GST:</span><span id="gstAmount">₹0</span></div>
+                <div class="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span id="totalAmount">₹0</span></div>
+              </div>
+
+              <div class="mt-4">
+                <label class="block text-sm">Payment Mode</label>
+                <select id="paymentMode" class="w-full px-3 py-2 border rounded">
+                  <option>Cash</option><option>UPI</option><option>Credit Card</option><option>Debit Card</option>
+                </select>
+              </div>
+
+              <div class="mt-6 flex gap-2">
+                <button id="generateBillBtn" class="flex-1 bg-green-500 text-white py-2 rounded">Generate Bill</button>
+                <button id="clearCartBtn" class="bg-gray-500 text-white py-2 px-4 rounded">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="stockPage" class="page hidden p-6">
+        <div class="mb-6">
+          <h1 class="text-3xl font-bold text-gray-800">Stock Management</h1>
+          <p class="text-gray-600">Inventory levels</p>
+        </div>
+
+        <div class="bg-white rounded-lg card-shadow">
+          <div class="p-6 border-b">
+            <div class="flex gap-4">
+              <input id="stockSearch" type="text" placeholder="Search..." class="flex-1 px-3 py-2 border rounded" />
+              <select id="stockFilter" class="px-3 py-2 border rounded"><option value="">All</option><option value="low">Low (<10)</option></select>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product ID</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Stock</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody id="stockTable" class="table-zebra"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="reportsPage" class="page hidden p-6">
+        <div class="mb-6">
+          <h1 class="text-3xl font-bold text-gray-800">Reports</h1>
+          <p class="text-gray-600">Sales & inventory</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-lg card-shadow mb-6">
+          <h3 class="text-lg font-semibold mb-4">Filter Orders</h3>
+          <div class="flex flex-wrap gap-4 items-end">
+            <div class="flex gap-2">
+              <button id="filterToday" class="px-4 py-2 bg-orange-500 text-white rounded">Today</button>
+              <button id="filterWeek" class="px-4 py-2 bg-gray-200 text-gray-700 rounded">This Week</button>
+            </div>
+            <div class="flex gap-2 items-center">
+              <label class="text-sm">Custom Range:</label>
+              <input id="startDate" type="date" class="px-3 py-2 border rounded" />
+              <span class="text-sm">to</span>
+              <input id="endDate" type="date" class="px-3 py-2 border rounded" />
+              <button id="applyRange" class="px-4 py-2 bg-blue-500 text-white rounded">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div class="bg-white p-6 rounded-lg card-shadow">
+            <h3 class="text-lg font-semibold mb-4">Sales Summary</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between"><span>Today's Sales:</span><span id="reportTodaySales">₹0</span></div>
+              <div class="flex justify-between"><span>This Week:</span><span id="reportWeekSales">₹0</span></div>
+              <div class="flex justify-between"><span>This Month:</span><span id="reportMonthSales">₹0</span></div>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg card-shadow">
+            <h3 class="text-lg font-semibold mb-4">Inventory Status</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between"><span>Total Products:</span><span id="reportTotalProducts">0</span></div>
+              <div class="flex justify-between"><span>Low Stock Items:</span><span id="reportLowStock">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg card-shadow">
+          <div class="p-6 border-b flex justify-between items-center">
+            <h2 class="text-xl font-semibold">Sales History</h2>
+            <div class="text-sm text-gray-600"><span id="filteredResultsCount">Showing all</span> <span class="ml-4">Total: <span id="filteredTotal">₹0</span></span></div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bill No</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer Phone</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="salesHistoryTable" class="table-zebra"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="settingsPage" class="page hidden p-6">
+        <div class="mb-6">
+          <h1 class="text-3xl font-bold text-gray-800">Settings</h1>
+          <p class="text-gray-600">System preferences</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-lg card-shadow">
+            <h3 class="text-lg font-semibold mb-4">Admin Credentials</h3>
+            <div class="space-y-4">
+              <div><label class="block text-sm">Email</label><input id="adminEmail" class="w-full px-3 py-2 border rounded" /></div>
+              <div><label class="block text-sm">New Password</label><input id="adminPassword" type="password" class="w-full px-3 py-2 border rounded" /></div>
+              <button id="updateCredentialsBtn" class="bg-orange-500 text-white px-4 py-2 rounded">Update Credentials</button>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-lg card-shadow">
+            <h3 class="text-lg font-semibold mb-4">GST & Printer</h3>
+            <div class="space-y-4">
+              <div><label class="block text-sm">GST Number</label><input id="gstNumber" class="w-full px-3 py-2 border rounded" /></div>
+              <div><label class="block text-sm">GST Rate (%)</label><input id="gstRate" type="number" class="w-full px-3 py-2 border rounded" value="18" min="0" max="100" /></div>
+              <div class="flex items-center gap-2"><input id="enableGST" type="checkbox" /><label class="text-sm">Enable GST</label></div>
+              <div><label class="block text-sm">Paper Size</label><select id="paperSize" class="w-full px-3 py-2 border rounded"><option>58mm</option><option>80mm</option><option>A4</option></select></div>
+              <button id="updateSettingsBtn" class="bg-orange-500 text-white px-4 py-2 rounded">Update Settings</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="addProductModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md">
+      <h2 class="text-xl font-semibold mb-4">Add New Product</h2>
+      <form id="addProductForm" class="space-y-4">
+        <div><label class="block text-sm">Product ID</label><input id="newProductId" required class="w-full px-3 py-2 border rounded" /></div>
+        <div><label class="block text-sm">Product Name</label><input id="newProductName" required class="w-full px-3 py-2 border rounded" /></div>
+        <div><label class="block text-sm">Category</label><input id="newProductCategory" required class="w-full px-3 py-2 border rounded" /></div>
+        <div><label class="block text-sm">Price (₹)</label><input id="newProductPrice" type="number" min="0" step="0.01" required class="w-full px-3 py-2 border rounded" /></div>
+        <div><label class="block text-sm">Stock</label><input id="newProductStock" type="number" min="0" required class="w-full px-3 py-2 border rounded" /></div>
+        <div><label class="block text-sm">Image</label><input id="newProductImage" type="file" accept="image/*" class="w-full" /></div>
+        <div class="flex gap-2 pt-4">
+          <button type="submit" class="flex-1 bg-orange-500 text-white py-2 rounded">Add Product</button>
+          <button type="button" id="cancelAddProduct" class="bg-gray-500 text-white py-2 px-4 rounded">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="editProductModalContainer"></div>
+  
+   <div id="billPrintModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white p-6 rounded-lg w-full max-w-4xl h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center mb-4 no-print">
+      <h2 class="text-xl font-semibold">Bill Preview (A4)</h2>
+      <button onclick="closeBillModal()" class="text-gray-500 text-2xl">✕</button>
+    </div>
+
+    <div id="billContent" class="flex-1 overflow-y-auto printable-bill a4-print p-6 bg-gray-50">
+      <table border="1" cellpadding="6" cellspacing="0" width="100%">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Rate</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          </tbody>
+      </table>
+    </div>
+
+    <div class="flex gap-2 mt-4 no-print">
+      <button onclick="printBill()" class="flex-1 bg-green-500 text-white py-2 rounded">
+        Print Bill
+      </button>
+      <button onclick="closeBillModal()" class="bg-gray-500 text-white py-2 px-4 rounded">
+        Done
+      </button>
+    </div>
+  </div>
+</div>
+
+  <script>
+    const API_URL = "http://localhost:5000/api";
+   // ---------------- DEBOUNCE FUNCTION ----------------
+    // This helps prevent freezing during search and filter by delaying the function call
+    function debounce(func, delay) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), delay);
+        };
+    }
+    // Globals
+    let products = [];
+    let bills = [];
+    let categories = [];
+    let cart = [];
+    let settings = {};
+
+    // Utility Functions
+    function showPage(pageId) {
+      document.querySelectorAll(".page").forEach(page => page.classList.add("hidden"));
+      document.getElementById(pageId + "Page").classList.remove("hidden");
+      document.querySelectorAll(".nav-link").forEach(link => link.classList.remove("active-nav"));
+      document.querySelector(`[data-page="${pageId}"]`).classList.add("active-nav");
+
+      // Load settings when the settings page is shown
+      if (pageId === 'settings') {
+        renderSettings();
+      }
+    }
+
+    async function apiCall(endpoint, method = 'GET', body = null, isFormData = false) {
+      const options = { method };
+      if (body) {
+        if (isFormData) {
+          options.body = body;
+        } else {
+          options.headers = { 'Content-Type': 'application/json' };
+          options.body = JSON.stringify(body);
+        }
+      }
+
+      const response = await fetch(`${API_URL}${endpoint}`, options);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'API call failed');
+      }
+      return response.json();
+    }
+    
+    function showMessage(message, isSuccess = true) {
+      alert(message);
+    }
+
+    // Main App Functions
+     async function login() {
+    const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
+
+  try {
+    const response = await apiCall("/login", "POST", { email, password });
+    if (response.message === "Login successful") {
+      showMessage("Login successful!");
+      // Here you would typically save a token or session info
+      // For this app's logic, just proceed to show the main app
+      document.getElementById("loginPage").classList.add("hidden");
+      document.getElementById("mainApp").classList.remove("hidden");
+      loadData();
+    }
+  } catch (error) {
+    showMessage(error.message, false);
+  }
+}
+    
+    async function register() {
+  const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
+
+  if (!email || !password) {
+    showMessage("Email and password are required for registration.", false);
+    return;
+  }
+  
+  // This is a new user registration, send to backend
+  try {
+    const response = await apiCall('/register', 'POST', { email, password });
+    if (response.message === "Registration successful") {
+      showMessage("Registration successful! You can now log in.", true);
+    }
+  } catch (error) {
+    showMessage(error.message, false);
+  }
+}
+    function logout() {
+      document.getElementById("loginPage").classList.remove("hidden");
+      document.getElementById("mainApp").classList.add("hidden");
+      document.getElementById("loginForm").reset();
+    }
+    
+    // Load all data from API
+    async function loadData() {
+      try {
+        const productsData = await apiCall('/products');
+        products = productsData;
+        
+        const billsData = await apiCall('/bills');
+        bills = billsData;
+        
+        const settingsData = await apiCall('/settings');
+        if (settingsData) {
+          settings = settingsData;
+        }
+
+        renderDashboard();
+        renderProducts();
+        renderBillingProducts();
+        renderStock();
+        renderReports();
+        renderSettings();
+
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    }
+    async function deleteBill(billNo) {
+    if (!confirm("Are you sure you want to delete this bill?")) {
+        return;
+    }
+    try {
+        await apiCall(`/bills/${billNo}`, 'DELETE');
+        showMessage("Bill deleted successfully!");
+        loadData(); // refresh sales history & dashboard
+    } catch (error) {
+        showMessage(error.message, false);
+    }
+   }
+   
+   async function viewBill(billNo) {
+    try {
+        const billData = await apiCall(`/bills/${billNo}`);
+        if (billData) {
+            renderBillContent(billData.bill, billData.items);
+        } else {
+            showMessage("Bill not found.", false);
+        }
+    } catch (error) {
+        showMessage(error.message, false);
+    }
+}
+    async function updateSettings() {
+      try {
+          const gstNumber = document.getElementById('gstNumber').value.trim();
+          const gstRate = parseFloat(document.getElementById('gstRate').value) || 0;
+          const enableGST = document.getElementById('enableGST').checked;
+          const paperSize = document.getElementById('paperSize').value;
+
+          const updatedSettings = { 
+              gst_number: gstNumber, 
+              gst_rate: gstRate, 
+              enable_gst: enableGST, 
+              paper_size: paperSize 
+          };
+
+          // Use localStorage to save settings
+          localStorage.setItem('settings', JSON.stringify(updatedSettings));
+          settings = updatedSettings;
+          alert('Settings updated successfully!');
+      } catch (error) {
+          console.error('Error updating settings:', error);
+          alert('Error updating settings. Please try again.');
+      }
+    }
+
+    async function updateCredentials() {
+      try {
+          const email = document.getElementById('adminEmail').value.trim();
+          const password = document.getElementById('adminPassword').value;
+
+          if (!email || !password) {
+              alert('Email and password are required!');
+              return;
+          }
+
+          // Use localStorage to save credentials
+          const passwordHash = CryptoJS.SHA256(password).toString(CryptoJS.enc.Hex);
+          localStorage.setItem('adminEmail', email);
+          localStorage.setItem('adminPassword', passwordHash);
+
+          alert('Admin credentials updated successfully!');
+          document.getElementById('adminPassword').value = '';
+      } catch (error) {
+          console.error('Error updating credentials:', error);
+          alert('Error updating credentials. Please try again.');
+      }
+    }
+
+
+    // Render Functions
+    function renderDashboard() {
+      const today = new Date().toISOString().split('T')[0];
+      const todayBills = bills.filter(b => b.created_at.startsWith(today));
+      const todayRevenue = todayBills.reduce((sum, b) => sum + parseFloat(b.total), 0).toFixed(2);
+      const todayOrders = todayBills.length;
+      const todayCustomers = new Set(todayBills.map(b => b.customer_name)).size;
+      const recentOrders = bills.slice(0, 5);
+
+      document.getElementById('todayRevenue').textContent = `₹${todayRevenue}`;
+      document.getElementById('todayOrders').textContent = todayOrders;
+      document.getElementById('todayCustomers').textContent = todayCustomers;
+
+      const tableBody = document.getElementById('recentOrdersTable');
+      tableBody.innerHTML = '';
+      recentOrders.forEach(bill => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${bill.bill_no}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${bill.customer_name}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">₹${parseFloat(bill.total).toFixed(2)}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${bill.payment_mode}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm">${new Date(bill.created_at).toLocaleString()}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+    
+    function renderProducts() {
+      renderCategoryFilters();
+      filterProducts();
+    }
+    
+    function renderCategoryFilters() {
+        const uniqueCategories = [...new Set(products.map(p => p.category))];
+        const categoryFilter = document.getElementById('categoryFilter');
+        const billingCategoryFilter = document.getElementById('billingCategoryFilter');
+        
+        categoryFilter.innerHTML = '<option value="">All Categories</option>';
+        billingCategoryFilter.innerHTML = '<option value="">All Categories</option>';
+        
+        uniqueCategories.forEach(cat => {
+            const option1 = document.createElement('option');
+            option1.value = cat;
+            option1.textContent = cat;
+            categoryFilter.appendChild(option1);
+            
+            const option2 = document.createElement('option');
+            option2.value = cat;
+            option2.textContent = cat;
+            billingCategoryFilter.appendChild(option2);
+        });
+    }
+    
+    function filterProducts() {
+        const searchTerm = document.getElementById('productSearch').value.toLowerCase();
+        const category = document.getElementById('categoryFilter').value;
+        const filteredProducts = products.filter(p => {
+            const nameMatch = p.name.toLowerCase().includes(searchTerm);
+            const categoryMatch = category === '' || p.category === category;
+            return nameMatch && categoryMatch;
+        });
+        renderFilteredProducts(filteredProducts);
+    }
+    
+    function renderFilteredProducts(filteredProducts) {
+        const tableBody = document.getElementById('productsTable');
+        tableBody.innerHTML = '';
+        filteredProducts.forEach(product => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-6 py-4"><img src="${product.image_path}" class="product-thumb" /></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${product.product_id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">${product.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">${product.category}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">₹${parseFloat(product.price).toFixed(2)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">${product.stock}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                    <button class="text-blue-600 hover:text-blue-900" onclick="openEditProductModal('${product.product_id}')">Edit</button>
+                    <button class="text-red-600 hover:text-red-900" onclick="deleteProduct('${product.product_id}')">Delete</button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+    function renderBillContent(bill, items) {
+  const content = document.getElementById("billContent");
+  const gstRate = settings.enable_gst ? settings.gst_rate : 0;
+  
+  let html = `<div class="p-6 bg-white rounded-lg bill-content">
+    <div class="text-center mb-4">
+        <h1 class="text-xl font-bold">SRI VELAVAN CRACKERS</h1>
+        <p class="text-xs">D.No: 12/417/3 Rathnapuri Nagar, Meenampatti, SIVAKASI - 626 123</p>
+        <p class="text-xs">Phone: 80722 50499, 97874 21455</p>
+        <p class="text-xs font-bold mt-2">BILL</p>
+    </div>
+    <div class="flex justify-between text-sm mb-4">
+        <div>
+            <p>Bill No: ${bill.bill_no}</p>
+            <p>Date: ${new Date(bill.created_at).toLocaleDateString()}</p>
+        </div>
+        <div class="text-right">
+            <p>Customer: ${bill.customer_name}</p>
+            <p>Phone: ${bill.customer_phone}</p>
+        </div>
+    </div>
+    <table class="w-full text-left table-auto border-collapse mb-4">
+        <thead>
+            <tr class="bg-gray-100">
+                <th class="py-2 px-3 text-sm">Item</th>
+                <th class="py-2 px-3 text-sm text-center">Qty</th>
+                <th class="py-2 px-3 text-sm text-right">Rate</th>
+                <th class="py-2 px-3 text-sm text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${items.map(item => `
+                <tr class="border-t">
+                    <td class="py-2 px-3 text-sm">${item.product_name}</td>
+                    <td class="py-2 px-3 text-sm text-center">${item.quantity}</td>
+                    <td class="py-2 px-3 text-sm text-right">₹${item.price.toFixed(2)}</td>
+                    <td class="py-2 px-3 text-sm text-right">₹${item.total.toFixed(2)}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    <div class="flex justify-end text-sm font-semibold mb-4">
+        <div class="w-1/2">
+            <div class="flex justify-between border-t border-b py-1">
+                <span>Subtotal:</span>
+                <span>₹${bill.subtotal.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between border-b py-1">
+                <span>Discount:</span>
+                <span>₹${bill.discount.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between border-b py-1">
+                <span>GST (${gstRate}%):</span>
+                <span>₹${bill.gst_amount.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between font-bold text-lg pt-2">
+                <span>Total:</span>
+                <span>₹${bill.total.toFixed(2)}</span>
+            </div>
+        </div>
+    </div>
+    <div class="text-center text-xs mt-4">
+        <p>Payment Mode: ${bill.payment_mode}</p>
+        <p class="mt-2">Thank you for your purchase!</p>
+    </div>
+  </div>
+  `;
+  content.innerHTML = html;
+  document.getElementById("billPrintModal").classList.remove("hidden");
+}
+
+function closeBillModal() {
+  document.getElementById("billPrintModal").classList.add("hidden");
+}
+
+function printBill() {
+  window.print();
+}
+
+    // Product CRUD Operations
+    function openAddProductModal() {
+        document.getElementById('addProductModal').classList.remove('hidden');
+    }
+    
+    function closeAddProductModal() {
+        document.getElementById('addProductModal').classList.add('hidden');
+        document.getElementById('addProductForm').reset();
+    }
+    
+    async function addProduct(event) {
+        event.preventDefault();
+        const form = document.getElementById('addProductForm');
+        const formData = new FormData(form);
+        const data = {
+            product_id: document.getElementById('newProductId').value,
+            name: document.getElementById('newProductName').value,
+            category: document.getElementById('newProductCategory').value,
+            price: document.getElementById('newProductPrice').value,
+            stock: document.getElementById('newProductStock').value,
+            image: document.getElementById('newProductImage').files[0]
+        };
+        
+        const formToSend = new FormData();
+        for (const key in data) {
+            formToSend.append(key, data[key]);
+        }
+        
+        try {
+            await apiCall('/products', 'POST', formToSend, true);
+            showMessage('Product added successfully!');
+            closeAddProductModal();
+            loadData();
+        } catch (error) {
+            showMessage(error.message, false);
+        }
+    }
+    
+    function openEditProductModal(productId) {
+        const product = products.find(p => p.product_id === productId);
+        if (!product) return;
+        
+        const modalHtml = `
+            <div id="editProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                    <h2 class="text-xl font-semibold mb-4">Edit Product</h2>
+                    <form id="editProductForm" class="space-y-4">
+                        <div><label class="block text-sm">Product ID</label><input id="editProductId" disabled value="${product.product_id}" class="w-full px-3 py-2 border rounded bg-gray-100" /></div>
+                        <div><label class="block text-sm">Product Name</label><input id="editProductName" value="${product.name}" required class="w-full px-3 py-2 border rounded" /></div>
+                        <div><label class="block text-sm">Category</label><input id="editProductCategory" value="${product.category}" required class="w-full px-3 py-2 border rounded" /></div>
+                        <div><label class="block text-sm">Price (₹)</label><input id="editProductPrice" type="number" min="0" step="0.01" value="${product.price}" required class="w-full px-3 py-2 border rounded" /></div>
+                        <div><label class="block text-sm">Stock</label><input id="editProductStock" type="number" min="0" value="${product.stock}" required class="w-full px-3 py-2 border rounded" /></div>
+                        <div><label class="block text-sm">Image</label><input id="editProductImage" type="file" accept="image/*" class="w-full" /></div>
+                        <div class="flex gap-2 pt-4">
+                            <button type="submit" class="flex-1 bg-blue-500 text-white py-2 rounded">Save Changes</button>
+                            <button type="button" onclick="closeEditProductModal()" class="bg-gray-500 text-white py-2 px-4 rounded">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.getElementById('editProductModalContainer').innerHTML = modalHtml;
+        document.getElementById('editProductModal').classList.remove('hidden');
+        document.getElementById('editProductForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = this;
+            const formData = new FormData();
+            formData.append('name', form.querySelector('#editProductName').value);
+            formData.append('category', form.querySelector('#editProductCategory').value);
+            formData.append('price', form.querySelector('#editProductPrice').value);
+            formData.append('stock', form.querySelector('#editProductStock').value);
+            if (form.querySelector('#editProductImage').files[0]) {
+                formData.append('image', form.querySelector('#editProductImage').files[0]);
+            }
+            
+            try {
+                await apiCall(`/products/${productId}`, 'PUT', formData, true);
+                showMessage('Product updated successfully!');
+                closeEditProductModal();
+                loadData();
+            } catch (error) {
+                showMessage(error.message, false);
+            }
+        });
+    }
+
+    function closeEditProductModal() {
+        document.getElementById('editProductModalContainer').innerHTML = '';
+    }
+    
+   async function deleteBill(billNo) {
+    if (!confirm("Are you sure you want to delete this bill?")) {
+        return;
+    }
+    try {
+        await apiCall(`/bills/${billNo}`, 'DELETE');
+        showMessage("Bill deleted successfully and stock restored!");
+        loadData(); // refresh sales history & dashboard
+    } catch (error) {
+        showMessage(error.message, false);
+    }
+    }
+    // Add this function within the existing <script> block
+   async function deleteProduct(productId) {
+    if (!confirm("Are you sure you want to delete this product?")) {
+        return;
+    }
+    try {
+        await apiCall(`/products/${productId}`, 'DELETE');
+        showMessage("Product deleted successfully!");
+        loadData(); // refresh the product & billing list
+    } catch (error) {
+        showMessage(error.message, false);
+    }
+    }
+    // Billing Functions
+    function renderBillingProducts() {
+        const productsList = document.getElementById('billingProductsList');
+        productsList.innerHTML = '';
+        products.forEach(product => {
+            const productCard = document.createElement('div');
+            productCard.className = 'bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-gray-100 transition card-shadow';
+            productCard.onclick = () => addToCart(product.product_id);
+            productCard.innerHTML = `
+                <img src="${product.image_path}" class="w-full h-24 object-cover rounded mb-2" />
+                <p class="font-semibold text-sm">${product.name}</p>
+                <p class="text-gray-600 text-xs">${product.category}</p>
+                <p class="text-sm font-bold mt-1">₹${parseFloat(product.price).toFixed(2)}</p>
+                <span class="text-xs text-gray-500 mt-1">Stock: ${product.stock}</span>
+            `;
+            productsList.appendChild(productCard);
+        });
+    }
+
+    function billingFilterProducts() {
+      const searchTerm = document.getElementById('billingSearch').value.toLowerCase();
+      const category = document.getElementById('billingCategoryFilter').value;
+      const filteredProducts = products.filter(p => {
+        const nameMatch = p.name.toLowerCase().includes(searchTerm);
+        const categoryMatch = category === '' || p.category === category;
+        return nameMatch && categoryMatch;
+      });
+      renderFilteredBillingProducts(filteredProducts);
+    }
+    
+    function renderFilteredBillingProducts(filteredProducts) {
+      const productsList = document.getElementById('billingProductsList');
+      productsList.innerHTML = '';
+      filteredProducts.forEach(product => {
+        const productCard = document.createElement('div');
+        productCard.className = 'bg-gray-50 p-4 rounded-lg cursor-pointer hover:bg-gray-100 transition card-shadow';
+        productCard.onclick = () => addToCart(product.product_id);
+        productCard.innerHTML = `
+            <img src="${product.image_path}" class="w-full h-24 object-cover rounded mb-2" />
+            <p class="font-semibold text-sm">${product.name}</p>
+            <p class="text-gray-600 text-xs">${product.category}</p>
+            <p class="text-sm font-bold mt-1">₹${parseFloat(product.price).toFixed(2)}</p>
+            <span class="text-xs text-gray-500 mt-1">Stock: ${product.stock}</span>
+        `;
+        productsList.appendChild(productCard);
+      });
+    }
+    
+    function addToCart(productId) {
+      const product = products.find(p => p.product_id === productId);
+      if (!product || product.stock <= 0) {
+        showMessage('Product is out of stock!', false);
+        return;
+      }
+      
+      const existingItem = cart.find(item => item.id === productId);
+      if (existingItem) {
+        if (existingItem.quantity >= product.stock) {
+          showMessage('Cannot add more, stock limit reached.', false);
+          return;
+        }
+        existingItem.quantity++;
+      } else {
+        cart.push({
+          id: product.product_id,
+          name: product.name,
+          price: parseFloat(product.price),
+          quantity: 1
+        });
+      }
+      renderCart();
+    }
+
+    function removeFromCart(productId) {
+      cart = cart.filter(item => item.id !== productId);
+      renderCart();
+    }
+    
+    function renderCart() {
+      const cartItems = document.getElementById('cartItems');
+      cartItems.innerHTML = '';
+      cart.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'flex justify-between items-center p-2 bg-gray-50 rounded';
+        itemDiv.innerHTML = `
+          <span>${item.name} x ${item.quantity}</span>
+          <div class="flex items-center gap-2">
+            <span>₹${(item.price * item.quantity).toFixed(2)}</span>
+            <button class="text-red-500 hover:text-red-700" onclick="removeFromCart('${item.id}')">✕</button>
+          </div>
+        `;
+        cartItems.appendChild(itemDiv);
+      });
+      calculateTotal();
+    }
+
+    function calculateTotal() {
+      let subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+      let discountAmount = subtotal * (discountPercent / 100);
+      let gstAmount = 0;
+      const settingsData = JSON.parse(localStorage.getItem('settings')) || { enable_gst: false, gst_rate: 0 };
+      if (settingsData.enable_gst) {
+        gstAmount = (subtotal - discountAmount) * (settingsData.gst_rate / 100);
+      }
+      let total = subtotal - discountAmount + gstAmount;
+
+      document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+      document.getElementById('discountAmount').textContent = `₹${discountAmount.toFixed(2)}`;
+      document.getElementById('gstAmount').textContent = `₹${gstAmount.toFixed(2)}`;
+      document.getElementById('totalAmount').textContent = `₹${total.toFixed(2)}`;
+    }
+
+    async function generateBill() {
+      if (cart.length === 0) {
+        showMessage("Cart is empty!", false);
+        return;
+      }
+      
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const discountPercent = parseFloat(document.getElementById('discountPercent').value) || 0;
+      const discountAmount = subtotal * (discountPercent / 100);
+      let gstAmount = 0;
+      const settingsData = JSON.parse(localStorage.getItem('settings')) || { enable_gst: false, gst_rate: 0 };
+      if (settingsData.enable_gst) {
+        gstAmount = (subtotal - discountAmount) * (settingsData.gst_rate / 100);
+      }
+      const total = subtotal - discountAmount + gstAmount;
+      
+      const billData = {
+        customer_name: document.getElementById('customerName').value || 'Walk-in Customer',
+        customer_phone: document.getElementById('customerPhone').value,
+        items: cart,
+        subtotal: subtotal.toFixed(2),
+        discount: discountAmount.toFixed(2),
+        gst_amount: gstAmount.toFixed(2),
+        total: total.toFixed(2),
+        payment_mode: document.getElementById('paymentMode').value
+      };
+
+      try {
+        const response = await apiCall('/bills', 'POST', billData);
+        if (response.message) {
+          showMessage(response.message);
+          displayBill(response.bill);
+          loadData(); // Reload data to update stock and reports
+          cart = [];
+          renderCart();
+        }
+      } catch (error) {
+        showMessage(error.message, false);
+      }
+    }
+
+   function displayBill(bill) {
+      const billContent = document.getElementById('billContent');
+      billContent.innerHTML = '';
+      
+      let html = `<div class="text-center font-bold">SRI VELAVAN CRACKERS</div>`;
+      html += `<div class="text-center thermal-print">D.No: 12/417/3 Rathnapuri Nagar, Meenampatti, SIVAKASI - 626 123</div>`;
+      html += `<div class="text-center thermal-print">Phone: 80722 50499, 97874 21455</div>`;
+      html += `<div class="text-center thermal-print">Website: srivelavancrackers.com</div>`;
+      html += `<div class="text-center">Bill No: ${bill.bill_no}</div>`;
+      html += `<div class="text-center">Customer: ${bill.customer_name}</div>`;
+      if(bill.customer_phone) {
+          html += `<div class="text-center">Phone: ${bill.customer_phone}</div>`;
+      }
+      html += `<div class="border-t border-dashed my-2"></div>`;
+      html += `<table class="w-full"><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>`;
+      bill.items.forEach(item => {
+       html += `<tr><td>${item.name}</td><td>${item.quantity}</td><td>₹${parseFloat(item.price).toFixed(2)}</td><td>₹${(item.price * item.quantity).toFixed(2)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+      html += `<div class="border-t border-dashed my-2"></div>`;
+      html += `<div class="flex justify-between"><span>Subtotal:</span><span>₹${bill.subtotal}</span></div>`;
+      html += `<div class="flex justify-between"><span>Discount:</span><span>-₹${bill.discount}</span></div>`;
+      html += `<div class="flex justify-between"><span>GST:</span><span>₹${bill.gst_amount}</span></div>`;
+      html += `<div class="flex justify-between font-bold text-lg"><span>Total:</span><span>₹${bill.total}</span></div>`;
+
+      billContent.innerHTML = html;
+      document.getElementById('billPrintModal').classList.remove('hidden');
+    }
+    
+    function printBill() {
+      window.print();
+    }
+function downloadBill(billId) {
+    fetch(`/api/download-bill/${billId}`)
+        .then(response => {
+            if (!response.ok) throw new Error("Bill not found");
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `bill_${billId}.pdf`; // suggested filename
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(err => {
+            showMessage(err.message, false);
+        });
+      }
+  
+    // Stock Functions
+   function renderStock() {
+     const tableBody = document.getElementById('stockTable');
+     tableBody.innerHTML = '';
+     products.forEach(product => {
+       const status = product.stock < 10 ? 'Low Stock' : 'In Stock';
+       const statusClass = product.stock < 10 ? 'badge-warning' : 'badge-success';
+       const row = document.createElement('tr');
+       row.innerHTML = `
+         <td class="px-6 py-4 whitespace-nowrap text-sm">${product.product_id}</td>
+         <td class="px-6 py-4 whitespace-nowrap text-sm">${product.name}</td>
+         <td class="px-6 py-4 whitespace-nowrap text-sm">${product.stock}</td>
+         <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="badge ${statusClass}">${status}</span></td>
+       `;
+       tableBody.appendChild(row);
+     });
+   }
+
+   function filterStock() {
+       const searchTerm = document.getElementById('stockSearch').value.toLowerCase();
+       const filterStatus = document.getElementById('stockFilter').value;
+       const filteredProducts = products.filter(p => {
+           const nameMatch = p.name.toLowerCase().includes(searchTerm);
+           const statusMatch = filterStatus === '' || (filterStatus === 'low' && p.stock < 10);
+           return nameMatch && statusMatch;
+       });
+       renderFilteredStock(filteredProducts);
+   }
+
+   function renderFilteredStock(filteredProducts) {
+       const tableBody = document.getElementById('stockTable');
+       tableBody.innerHTML = '';
+       filteredProducts.forEach(product => {
+           const status = product.stock < 10 ? 'Low Stock' : 'In Stock';
+           const statusClass = product.stock < 10 ? 'badge-warning' : 'badge-success';
+           const row = document.createElement('tr');
+           row.innerHTML = `
+               <td class="px-6 py-4 whitespace-nowrap text-sm">${product.product_id}</td>
+               <td class="px-6 py-4 whitespace-nowrap text-sm">${product.name}</td>
+               <td class="px-6 py-4 whitespace-nowrap text-sm">${product.stock}</td>
+               <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="badge ${statusClass}">${status}</span></td>
+           `;
+           tableBody.appendChild(row);
+       });
+   }
+
+   // Reports Functions
+   function renderReports() {
+       // Sales Summary
+       const today = new Date().toISOString().split('T')[0];
+       const thisWeekStart = new Date();
+       thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+       const thisMonthStart = new Date();
+       // ... (rest of the renderReports function remains the same)
+   }
+   
+    // Reports Functions
+    function renderReports() {
+        // Sales Summary
+        const today = new Date().toISOString().split('T')[0];
+        const thisWeekStart = new Date();
+        thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+        const thisMonthStart = new Date();
+        thisMonthStart.setDate(1);
+
+        const todaySales = bills.filter(b => b.created_at.startsWith(today)).reduce((sum, b) => sum + parseFloat(b.total), 0).toFixed(2);
+        const weekSales = bills.filter(b => new Date(b.created_at) >= thisWeekStart).reduce((sum, b) => sum + parseFloat(b.total), 0).toFixed(2);
+        const monthSales = bills.filter(b => new Date(b.created_at) >= thisMonthStart).reduce((sum, b) => sum + parseFloat(b.total), 0).toFixed(2);
+
+        document.getElementById('reportTodaySales').textContent = `₹${todaySales}`;
+        document.getElementById('reportWeekSales').textContent = `₹${weekSales}`;
+        document.getElementById('reportMonthSales').textContent = `₹${monthSales}`;
+
+        // Inventory Status
+        const totalProducts = products.length;
+        const lowStockItems = products.filter(p => p.stock < 10).length;
+
+        document.getElementById('reportTotalProducts').textContent = totalProducts;
+        document.getElementById('reportLowStock').textContent = lowStockItems;
+
+        // Sales History
+        renderSalesHistory(bills);
+    }
+  
+// Function to render the sales history table
+function renderSalesHistory(billsToRender) {
+    const tableBody = document.getElementById('salesHistoryTable');
+    tableBody.innerHTML = '';
+    const totalAmount = billsToRender.reduce((sum, b) => sum + parseFloat(b.total), 0).toFixed(2);
+    
+    document.getElementById('filteredResultsCount').textContent = `Showing ${billsToRender.length} results`;
+    document.getElementById('filteredTotal').textContent = `₹${totalAmount}`;
+
+    billsToRender.forEach(bill => {
+        const row = document.createElement('tr');
+        // bill.items might not be available if your backend doesn't send it, so you might need to adjust this line.
+        // Assuming it is available from a previous fetch, it's safe to use.
+        const itemNames = bill.items ? bill.items.map(i => `${i.name} (${i.quantity})`).join(', ') : '';
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm">${bill.bill_no}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">${bill.customer_name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">${bill.customer_phone || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">₹${parseFloat(bill.total).toFixed(2)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">${new Date(bill.created_at).toLocaleDateString()}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                <button onclick="viewBill('${bill.bill_no}')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">View Bill</button>
+                <button class="text-blue-600 hover:text-blue-900" onclick="downloadBill('${bill.bill_no}')">Download</button>
+                <button class="text-red-600 hover:text-red-900" onclick="deleteBill('${bill.bill_no}')">Delete</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+// Function to fetch bills based on a date range from the backend
+async function fetchBillsByDateRange(startDate, endDate) {
+    try {
+        const API_URL = 'http://localhost:5000';
+        const url = new URL(`${API_URL}/api/bills`);
+        
+        // Add date parameters to the URL only if they exist
+        if (startDate) {
+            url.searchParams.append('startDate', startDate);
+        }
+        if (endDate) {
+            url.searchParams.append('endDate', endDate);
+        }
+        
+        // Add a unique timestamp to prevent caching issues
+        url.searchParams.append('timestamp', Date.now());
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        bills = await response.json(); // Update the global bills array with the new data
+        renderSalesHistory(bills); // Render the fetched bills
+    } catch (error) {
+        console.error("Error fetching bills:", error);
+    }
+}
+
+// Function to handle the "Apply" button click
+function applyDateRangeFilter() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    // Ensure both start and end dates are provided for a custom range
+    if (startDate && endDate) {
+        fetchBillsByDateRange(startDate, endDate);
+    } else {
+        // You might want to handle this case, e.g., fetching all bills if dates are cleared
+        fetchBillsByDateRange();
+    }
+}
+
+// Initial fetch on page load
+document.addEventListener('DOMContentLoaded', () => {
+    fetchBillsByDateRange();
+});
+
+// Event listener for the "Apply" button
+document.getElementById('applyRange').addEventListener('click', applyDateRangeFilter);
+    
+   function renderSettings() {
+    const settingsData = JSON.parse(localStorage.getItem('settings'));
+    if (!settingsData) return;
+
+    const gstNumberInput = document.getElementById('gstNumber');
+    if (gstNumberInput) gstNumberInput.value = settingsData.gst_number || '';
+
+    const gstRateInput = document.getElementById('gstRate');
+    if (gstRateInput) gstRateInput.value = settingsData.gst_rate || 0;
+
+    const enableGSTCheckbox = document.getElementById('enableGST');
+    if (enableGSTCheckbox) enableGSTCheckbox.checked = settingsData.enable_gst || false;
+
+    const paperSizeSelect = document.getElementById('paperSize');
+    if (paperSizeSelect) paperSizeSelect.value = settingsData.paper_size || 'A4';
+
+    const adminEmailInput = document.getElementById('adminEmail');
+    if (adminEmailInput) adminEmailInput.value = localStorage.getItem('adminEmail') || '';
+}
+
+    
+    function openBillModal() {
+  const modal = document.getElementById("billPrintModal");
+  modal.classList.remove("hidden"); // show modal
+
+  const billContent = document.getElementById("billContent");
+  setTimeout(() => {
+    billContent.scrollTop = billContent.scrollHeight; // auto-scroll to bottom
+  }, 200);
+}
+
+function closeBillModal() {
+    // Get the modal element by its ID
+    const modal = document.getElementById('billPrintModal');
+
+    // Check if the modal element exists before trying to manipulate it
+    if (modal) {
+        // Hide the modal by adding the 'hidden' class
+        modal.classList.add('hidden');
+    }
+}
+function printBill() {
+  window.print();
+}
+
+    
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', (event) =>{
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      login();
+    });
+
+    document.getElementById('registerBtn').addEventListener('click', register);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('generateBillBtn').addEventListener('click', generateBill);
+    document.getElementById('clearCartBtn').addEventListener('click', () => { cart = []; renderCart(); });
+    
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        showPage(this.dataset.page);
+      });
+    });
+    
+    const closeBillModalBtn = document.getElementById('closeBillModalBtn');
+    if (closeBillModalBtn) {
+        closeBillModalBtn.addEventListener('click', closeBillModal);
+    }
+    const doneBillModalBtn = document.getElementById('doneBillModalBtn');
+    if (doneBillModalBtn) {
+        doneBillModalBtn.addEventListener('click', closeBillModal);
+    }
+    
+    document.getElementById('addProductBtn').addEventListener('click', openAddProductModal);
+    document.getElementById('cancelAddProduct').addEventListener('click', closeAddProductModal);
+    document.getElementById('addProductForm').addEventListener('submit', addProduct);
+    document.getElementById('productSearch').addEventListener('input', debounce(filterProducts, 300));
+    document.getElementById('categoryFilter').addEventListener('change', filterProducts);
+    document.getElementById('billingSearch').addEventListener('input', debounce(billingFilterProducts, 300));
+    document.getElementById('billingCategoryFilter').addEventListener('change', billingFilterProducts);
+    document.getElementById('discountPercent').addEventListener('input', calculateTotal);
+    // Stock page listeners
+    document.getElementById('stockSearch').addEventListener('input', debounce(filterStock, 300));
+    document.getElementById('stockFilter').addEventListener('change', filterStock);
+    
+
+    document.getElementById('updateSettingsBtn').addEventListener('click',updateSettings);
+    document.getElementById('updateCredentialsBtn').addEventListener('click', updateCredentials);
+    });
+    // Initial load
+    showPage('dashboard');
+    loadData();
+  </script>
+</body>
+</html>

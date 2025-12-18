@@ -1,0 +1,63 @@
+{
+  "name": "srivelavan-pos",
+  "version": "1.0.0",
+  "description": "Sri Velavan POS Desktop Application",
+  "main": "main.js",
+  "author": "Sri Velavan Crackers",
+  "license": "ISC",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"nodemon server.js\" \"electron .\"",
+    "backend": "node server.js",
+    "build": "electron-builder",
+    "dist": "electron-builder --win"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.9.7",
+    "node-fetch": "^2.7.0",
+    "node-thermal-printer": "^4.5.0",
+    "pdfkit": "^0.17.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "electron": "^38.1.2",
+    "electron-builder": "^25.1.8",
+    "nodemon": "^3.1.0"
+  },
+  "build": {
+    "appId": "com.srivelavan.pos",
+    "productName": "Sri Velavan POS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "server.js",
+      "package.json",
+      "public/**/*",
+      "node_modules/**/*",
+      "config.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/logo.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
